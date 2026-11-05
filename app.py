@@ -25,10 +25,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialisation de la BDD et données de démo au premier lancement
+# Initialisation sécurisée de la BDD (garantie anti-écrasement SharePoint)
+from database import ensure_database_ready
+
 if "db_initialized" not in st.session_state:
-    init_db()
-    seed_initial_data()
+    ensure_database_ready()
     st.session_state["db_initialized"] = True
 
 # Gestion de la page active dans la session

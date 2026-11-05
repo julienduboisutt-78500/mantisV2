@@ -1,0 +1,397 @@
+{
+  "version": "Mantis V2",
+  "exported_at": "2026-11-05 21:51:11",
+  "tables": {
+    "clients": [
+      {
+        "id": 5,
+        "name": "TF1",
+        "code": "TF1",
+        "contact_email": "",
+        "contact_phone": "",
+        "is_active": 1,
+        "created_at": "2026-11-05 11:58:15"
+      }
+    ],
+    "projects": [
+      {
+        "id": 10,
+        "name": "Projet One Pay",
+        "code": "ONEPAY",
+        "description": "",
+        "client_id": 5,
+        "parent_project_id": null,
+        "status": "Actif",
+        "created_at": "2026-11-05 12:03:56"
+      }
+    ],
+    "users": [
+      {
+        "id": 1,
+        "username": "admin",
+        "password_hash": "081ec606c78903ad9c70599b3673bd7e$9b62375b3d9f016c201a8ba498f3bf2f76b25133c81f0972dac147eb4cc38c5c",
+        "full_name": "Administrateur Système",
+        "email": "admin@cegid.local",
+        "role": "Administrateur",
+        "client_id": null,
+        "is_active": 1,
+        "created_at": "2026-11-05 10:26:22"
+      },
+      {
+        "id": 9,
+        "username": "pierric",
+        "password_hash": "dc1a34e66ef4cf9b0a7c9825a7e4af20$6a174c26ff24b2050741d4ba39fbad9e00c7542121a10b8ab4781892e7074f6c",
+        "full_name": "Pierric MESTRALLET",
+        "email": "pierricm@cegid.com",
+        "role": "Administrateur",
+        "client_id": null,
+        "is_active": 1,
+        "created_at": "2026-11-05 13:15:43"
+      },
+      {
+        "id": 10,
+        "username": "tf1",
+        "password_hash": "7857bf484b5c70ce8d810555e90ac986$76ebabce5162c5943534a72de7d86cccd33e297f4cbf5b2f4bf979047c0f8047",
+        "full_name": "tf1",
+        "email": "",
+        "role": "Client",
+        "client_id": 5,
+        "is_active": 1,
+        "created_at": "2026-11-05 13:16:07"
+      }
+    ],
+    "user_project_access": [],
+    "categories": [
+      {
+        "id": 9,
+        "name": "Organisation",
+        "project_id": null
+      },
+      {
+        "id": 10,
+        "name": "GA",
+        "project_id": null
+      },
+      {
+        "id": 11,
+        "name": "Paie",
+        "project_id": null
+      },
+      {
+        "id": 12,
+        "name": "Absence",
+        "project_id": null
+      },
+      {
+        "id": 13,
+        "name": "Post-Paie",
+        "project_id": null
+      },
+      {
+        "id": 14,
+        "name": "Comptabilité",
+        "project_id": null
+      },
+      {
+        "id": 15,
+        "name": "Interface",
+        "project_id": null
+      },
+      {
+        "id": 16,
+        "name": "Reprise de données",
+        "project_id": null
+      },
+      {
+        "id": 17,
+        "name": "Paie de comparaison",
+        "project_id": null
+      }
+    ],
+    "tickets": [
+      {
+        "id": 8,
+        "ticket_number": "TIK-000001",
+        "project_id": 10,
+        "client_id": 5,
+        "category": "GA",
+        "reporter_id": 10,
+        "assigned_id": null,
+        "status": "Nouveau",
+        "resolution": "Non résolu",
+        "priority": "Haute",
+        "severity": "Majeure",
+        "reproducibility": "Toujours",
+        "summary": "Problème sur le dossier du salarié",
+        "description": "Problème sur le dossier du salarié",
+        "steps_to_reproduce": "",
+        "additional_info": "",
+        "estimated_hours": 0.0,
+        "spent_hours": 0.0,
+        "created_at": "2026-11-05 13:18:18",
+        "updated_at": "2026-11-05 13:18:18",
+        "closed_at": null,
+        "qualification_client": "Non qualifié",
+        "qualification_cegid": "Non qualifié"
+      }
+    ],
+    "ticket_notes": [],
+    "ticket_attachments": [],
+    "ticket_history": [
+      {
+        "id": 7,
+        "ticket_id": 8,
+        "user_id": 10,
+        "field_changed": "Création",
+        "old_value": "",
+        "new_value": "Nouveau",
+        "created_at": "2026-11-05 13:18:18"
+      }
+    ],
+    "custom_lists": [
+      {
+        "id": 1,
+        "list_type": "qualification_client",
+        "value": "Non qualifié",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 2,
+        "list_type": "qualification_client",
+        "value": "En attente test client",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 3,
+        "list_type": "qualification_client",
+        "value": "Validé en recette",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 4,
+        "list_type": "qualification_client",
+        "value": "Refusé / Non conforme",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 5,
+        "list_type": "qualification_client",
+        "value": "Demande d'informations complémentaires",
+        "sort_order": 4,
+        "is_active": 1
+      },
+      {
+        "id": 6,
+        "list_type": "qualification_cegid",
+        "value": "Non qualifié",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 7,
+        "list_type": "qualification_cegid",
+        "value": "Analyse technique en cours",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 8,
+        "list_type": "qualification_cegid",
+        "value": "Bug avéré (escalade R&D)",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 9,
+        "list_type": "qualification_cegid",
+        "value": "Demande d'évolution",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 10,
+        "list_type": "qualification_cegid",
+        "value": "Assistance / Formation client",
+        "sort_order": 4,
+        "is_active": 1
+      },
+      {
+        "id": 11,
+        "list_type": "qualification_cegid",
+        "value": "Incident infrastructure / Réseau",
+        "sort_order": 5,
+        "is_active": 1
+      },
+      {
+        "id": 12,
+        "list_type": "qualification_cegid",
+        "value": "Comportement standard conforme",
+        "sort_order": 6,
+        "is_active": 1
+      },
+      {
+        "id": 13,
+        "list_type": "priority",
+        "value": "Basse",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 14,
+        "list_type": "priority",
+        "value": "Normale",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 15,
+        "list_type": "priority",
+        "value": "Haute",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 16,
+        "list_type": "priority",
+        "value": "Urgente",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 17,
+        "list_type": "priority",
+        "value": "Immédiate",
+        "sort_order": 4,
+        "is_active": 1
+      },
+      {
+        "id": 18,
+        "list_type": "severity",
+        "value": "Ajustement",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 19,
+        "list_type": "severity",
+        "value": "Mineure",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 20,
+        "list_type": "severity",
+        "value": "Majeure",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 21,
+        "list_type": "severity",
+        "value": "Bloquante",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 22,
+        "list_type": "resolution",
+        "value": "Non résolu",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 23,
+        "list_type": "resolution",
+        "value": "Corrigé",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 24,
+        "list_type": "resolution",
+        "value": "Non reproductible",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 25,
+        "list_type": "resolution",
+        "value": "Ne sera pas corrigé",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 26,
+        "list_type": "resolution",
+        "value": "Doublon",
+        "sort_order": 4,
+        "is_active": 1
+      },
+      {
+        "id": 27,
+        "list_type": "resolution",
+        "value": "Suspendu",
+        "sort_order": 5,
+        "is_active": 1
+      },
+      {
+        "id": 28,
+        "list_type": "reproducibility",
+        "value": "Toujours",
+        "sort_order": 0,
+        "is_active": 1
+      },
+      {
+        "id": 29,
+        "list_type": "reproducibility",
+        "value": "Parfois",
+        "sort_order": 1,
+        "is_active": 1
+      },
+      {
+        "id": 30,
+        "list_type": "reproducibility",
+        "value": "Aléatoire",
+        "sort_order": 2,
+        "is_active": 1
+      },
+      {
+        "id": 31,
+        "list_type": "reproducibility",
+        "value": "Non testé",
+        "sort_order": 3,
+        "is_active": 1
+      },
+      {
+        "id": 32,
+        "list_type": "reproducibility",
+        "value": "N/A",
+        "sort_order": 4,
+        "is_active": 1
+      }
+    ],
+    "user_client_access": [
+      {
+        "user_id": 10,
+        "client_id": 5
+      }
+    ],
+    "email_settings": [
+      {
+        "id": 1,
+        "is_enabled": 0,
+        "smtp_server": "",
+        "smtp_port": 587,
+        "smtp_user": "",
+        "smtp_password": "",
+        "use_tls": 1,
+        "sender_email": "",
+        "sender_name": "Mantis V2"
+      }
+    ]
+  }
+}

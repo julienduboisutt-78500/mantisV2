@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from pathlib import Path
 
 CONFIG_FILE = Path(os.getcwd()) / ".app_config.json"
@@ -59,6 +60,17 @@ def get_storage_path() -> Path:
         default_p = Path(os.getcwd()) / "onedrive_storage"
         
     default_p.mkdir(parents=True, exist_ok=True)
+
+    # Protection & Bootstrap : si des fichiers de données sont packagés avec l'app, les copier dans le stockage s'ils manquent
+    for fname in ["ticketing.db", "mantis_data.json", "Export_MantisV2_Complet.xlsx"]:
+        bundled_f = Path(os.getcwd()) / fname
+        dest_f = default_p / fname
+        if bundled_f.exists() and not dest_f.exists():
+            try:
+                shutil.copy2(bundled_f, dest_f)
+            except Exception:
+                pass
+
     return default_p
 
 def set_storage_path(new_input: str) -> tuple[bool, str, Path]:
