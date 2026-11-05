@@ -8,7 +8,7 @@ from database import (
     get_db, STATUS_LIST, log_ticket_history, get_custom_list_values, sync_all_to_sharepoint_async
 )
 from auth import (
-    get_current_user, can_assign_and_resolve, can_see_private_notes, can_delete_ticket
+    get_current_user, can_assign_and_resolve, can_see_private_notes, can_delete_ticket, can_edit_ticket
 )
 from utils import (
     get_status_badge, get_priority_badge, get_severity_badge,
@@ -160,10 +160,13 @@ def show_ticket_detail():
             if ticket['closed_at']:
                 st.markdown(f"**Fermé le :** {ticket['closed_at']}")
 
-        # Panneau de Cycle de vie (si l'utilisateur a les droits)
-        if can_assign_and_resolve(user):
+        is_staff = can_assign_and_resolve(user)
+        user_can_edit = can_edit_ticket(user, ticket)
+
+        # Panneau de Cycle de vie & Suivi (accessible au personnel et au profil Client)
+        if user_can_edit:
             with st.container(border=True):
-                st.markdown("#### ⚡ Gestion du Cycle de Vie")
+                st.markdown("#### ⚡ Gestion du Cycle de Vie" if is_staff else "#### ⚡ Suivi & Qualification du Ticket")
                 with st.form("workflow_form"):
                     new_status = st.selectbox(
                         "Statut",
@@ -171,29 +174,39 @@ def show_ticket_detail():
                         index=STATUS_LIST.index(ticket["status"]) if ticket["status"] in STATUS_LIST else 0
                     )
                     
-                    cur_res = ticket["resolution"] if ticket["resolution"] in resolution_list else (resolution_list[0] if resolution_list else "Non résolu")
-                    cur_res_idx = resolution_list.index(cur_res) if cur_res in resolution_list else 0
-                    new_resolution = st.selectbox("Résolution", resolution_list, index=cur_res_idx)
+                    if is_staff:
+                        cur_res = ticket["resolution"] if ticket["resolution"] in resolution_list else (resolution_list[0] if resolution_list else "Non résolu")
+                        cur_res_idx = resolution_list.index(cur_res) if cur_res in resolution_list else 0
+                        new_resolution = st.selectbox("Résolution", resolution_list, index=cur_res_idx)
 
-                    # Choix assignation
-                    user_opts = ["(Non assigné)"] + [u["full_name"] for u in all_users]
-                    cur_assigned_idx = 0
-                    if ticket["assigned_name"]:
-                        for idx, u in enumerate(all_users):
-                            if u["id"] == ticket["assigned_id"]:
-                                cur_assigned_idx = idx + 1
-                                break
+                        # Choix assignation
+                        user_opts = ["(Non assigné)"] + [u["full_name"] for u in all_users]
+                        cur_assigned_idx = 0
+                        if ticket["assigned_name"]:
+                            for idx, u in enumerate(all_users):
+                                if u["id"] == ticket["assigned_id"]:
+                                    cur_assigned_idx = idx + 1
+                                    break
 
-                    new_assigned_name = st.selectbox("Assigner à", user_opts, index=cur_assigned_idx)
+                        new_assigned_name = st.selectbox("Assigner à", user_opts, index=cur_assigned_idx)
+                    else:
+                        new_resolution = ticket["resolution"]
+                        new_assigned_name = ticket["assigned_name"] or "(Non assigné)"
+                        assignee_txt = ticket["assigned_name"] if ticket["assigned_name"] else "*(En attente d'assignation Cegid)*"
+                        st.caption(f"👤 **Assigné à :** {assignee_txt}")
 
                     # Qualifications Client et Cegid
                     cur_qc = ticket.get("qualification_client")
                     cur_qc_idx = qualif_client_list.index(cur_qc) if cur_qc in qualif_client_list else 0
                     new_qualif_client = st.selectbox("Qualification Client", qualif_client_list, index=cur_qc_idx)
 
-                    cur_qcegid = ticket.get("qualification_cegid")
-                    cur_qcegid_idx = qualif_cegid_list.index(cur_qcegid) if cur_qcegid in qualif_cegid_list else 0
-                    new_qualif_cegid = st.selectbox("Qualification Cegid", qualif_cegid_list, index=cur_qcegid_idx)
+                    if is_staff:
+                        cur_qcegid = ticket.get("qualification_cegid")
+                        cur_qcegid_idx = qualif_cegid_list.index(cur_qcegid) if cur_qcegid in qualif_cegid_list else 0
+                        new_qualif_cegid = st.selectbox("Qualification Cegid", qualif_cegid_list, index=cur_qcegid_idx)
+                    else:
+                        new_qualif_cegid = ticket.get("qualification_cegid") or "Non qualifié"
+                        st.caption(f"🏢 **Qualification Cegid :** `{new_qualif_cegid}`")
 
                     # Catégorie modifiable
                     cur_cat_idx = avail_cats.index(ticket["category"]) if ticket["category"] in avail_cats else 0
@@ -210,25 +223,28 @@ def show_ticket_detail():
                     submit_wf = st.form_submit_button("💾 Mettre à jour le ticket", type="primary", use_container_width=True)
 
                     if submit_wf:
-                        new_assigned_id = None
-                        if new_assigned_name != "(Non assigné)":
-                            for u in all_users:
-                                if u["full_name"] == new_assigned_name:
-                                    new_assigned_id = u["id"]
-                                    break
+                        new_assigned_id = ticket["assigned_id"]
+                        if is_staff:
+                            new_assigned_id = None
+                            if new_assigned_name != "(Non assigné)":
+                                for u in all_users:
+                                    if u["full_name"] == new_assigned_name:
+                                        new_assigned_id = u["id"]
+                                        break
 
                         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         closed_at = now_str if new_status in ["Résolu", "Fermé"] else None
 
                         with get_db() as conn:
                             log_ticket_history(conn, ticket["id"], user["id"], "Statut", ticket["status"], new_status)
-                            log_ticket_history(conn, ticket["id"], user["id"], "Résolution", ticket["resolution"], new_resolution)
-                            log_ticket_history(conn, ticket["id"], user["id"], "Assigné à", ticket["assigned_name"] or "Non assigné", new_assigned_name)
+                            if is_staff:
+                                log_ticket_history(conn, ticket["id"], user["id"], "Résolution", ticket["resolution"], new_resolution)
+                                log_ticket_history(conn, ticket["id"], user["id"], "Assigné à", ticket["assigned_name"] or "Non assigné", new_assigned_name)
+                                log_ticket_history(conn, ticket["id"], user["id"], "Qualif. Cegid", ticket.get("qualification_cegid", ""), new_qualif_cegid)
                             log_ticket_history(conn, ticket["id"], user["id"], "Catégorie", ticket["category"], new_cat)
                             log_ticket_history(conn, ticket["id"], user["id"], "Priorité", ticket["priority"], new_priority)
                             log_ticket_history(conn, ticket["id"], user["id"], "Sévérité", ticket["severity"], new_severity)
                             log_ticket_history(conn, ticket["id"], user["id"], "Qualif. Client", ticket.get("qualification_client", ""), new_qualif_client)
-                            log_ticket_history(conn, ticket["id"], user["id"], "Qualif. Cegid", ticket.get("qualification_cegid", ""), new_qualif_cegid)
 
                             conn.execute("""
                                 UPDATE tickets
@@ -244,7 +260,7 @@ def show_ticket_detail():
                             ticket["id"],
                             action_type="update",
                             author_name=user["full_name"],
-                            details=f"Statut : {new_status} | Priorité : {new_priority} | Assigné à : {new_assigned_name}"
+                            details=f"Statut : {new_status} | Priorité : {new_priority} | Qualif. Client : {new_qualif_client}"
                         )
 
                         sync_all_to_sharepoint_async()
@@ -297,82 +313,118 @@ def show_ticket_detail():
                 st.caption(ticket["additional_info"])
 
             # Formulaire de modification complète des informations du ticket
-            with st.expander("✏️ **Modifier ou compléter les informations de ce ticket**", expanded=False):
-                with st.form("edit_ticket_content_form"):
-                    new_summary = st.text_input("Titre / Résumé du ticket *", value=ticket["summary"])
-                    new_desc = st.text_area("Description détaillée *", value=ticket["description"], height=120)
-                    new_steps = st.text_area("Étapes pour reproduire", value=ticket.get("steps_to_reproduce") or "", height=80)
-                    new_add_info = st.text_area("Informations complémentaires", value=ticket.get("additional_info") or "", height=60)
+            if user_can_edit:
+                with st.expander("✏️ **Modifier ou compléter les informations de ce ticket**", expanded=False):
+                    with st.form("edit_ticket_content_form"):
+                        new_summary = st.text_input("Titre / Résumé du ticket *", value=ticket["summary"])
+                        new_desc = st.text_area("Description détaillée *", value=ticket["description"], height=120)
+                        new_steps = st.text_area("Étapes pour reproduire", value=ticket.get("steps_to_reproduce") or "", height=80)
+                        new_add_info = st.text_area("Informations complémentaires", value=ticket.get("additional_info") or "", height=60)
 
-                    c_ed1, c_ed2, c_ed3 = st.columns(3)
-                    with c_ed1:
-                        # Client
-                        client_opts = ["(Aucun client)"] + [c["name"] for c in all_clients]
-                        cur_c_idx = 0
-                        if ticket["client_name"]:
-                            for idx, c in enumerate(all_clients):
-                                if c["id"] == ticket["client_id"]:
-                                    cur_c_idx = idx + 1
+                        c_ed1, c_ed2, c_ed3 = st.columns(3)
+                        with c_ed1:
+                            # Client
+                            if is_staff:
+                                client_opts = ["(Aucun client)"] + [c["name"] for c in all_clients]
+                                cur_c_idx = 0
+                                if ticket["client_name"]:
+                                    for idx, c in enumerate(all_clients):
+                                        if c["id"] == ticket["client_id"]:
+                                            cur_c_idx = idx + 1
+                                            break
+                                sel_c_name = st.selectbox("Client rattaché", client_opts, index=cur_c_idx)
+                            else:
+                                sel_c_name = ticket["client_name"] or "(Aucun client)"
+                                st.text_input("Client rattaché", value=sel_c_name, disabled=True)
+
+                        with c_ed2:
+                            # Projet (filtré selon le client pour les profils clients)
+                            if is_staff:
+                                eligible_projects = all_projects
+                            else:
+                                eligible_projects = [p for p in all_projects if p.get("client_id") == ticket["client_id"] or ticket["client_id"] is None]
+                                if not eligible_projects:
+                                    eligible_projects = all_projects
+
+                            proj_opts = [p["name"] for p in eligible_projects]
+                            cur_p_idx = 0
+                            for idx, p in enumerate(eligible_projects):
+                                if p["id"] == ticket["project_id"]:
+                                    cur_p_idx = idx
                                     break
-                        sel_c_name = st.selectbox("Client rattaché", client_opts, index=cur_c_idx)
+                            sel_p_name = st.selectbox("Projet rattaché", proj_opts, index=cur_p_idx)
 
-                    with c_ed2:
-                        # Projet
-                        proj_opts = [p["name"] for p in all_projects]
-                        cur_p_idx = 0
-                        for idx, p in enumerate(all_projects):
-                            if p["id"] == ticket["project_id"]:
-                                cur_p_idx = idx
-                                break
-                        sel_p_name = st.selectbox("Projet rattaché", proj_opts, index=cur_p_idx)
+                        with c_ed3:
+                            if is_staff:
+                                new_est_hours = st.number_input("Temps estimé (h)", min_value=0.0, step=0.5, value=float(ticket.get("estimated_hours") or 0.0))
+                            else:
+                                new_est_hours = float(ticket.get("estimated_hours") or 0.0)
+                                cur_prio_idx2 = priority_list.index(ticket["priority"]) if ticket["priority"] in priority_list else 0
+                                new_prio_in_form = st.selectbox("Priorité", priority_list, index=cur_prio_idx2, key="prio_form_edit")
 
-                    with c_ed3:
-                        new_est_hours = st.number_input("Temps estimé (h)", min_value=0.0, step=0.5, value=float(ticket.get("estimated_hours") or 0.0))
+                        c_attr1, c_attr2 = st.columns(2)
+                        with c_attr1:
+                            cur_cat_idx2 = avail_cats.index(ticket["category"]) if ticket["category"] in avail_cats else 0
+                            new_cat_in_form = st.selectbox("Catégorie", avail_cats, index=cur_cat_idx2, key="cat_form_edit")
+                        with c_attr2:
+                            cur_qc_idx2 = qualif_client_list.index(ticket.get("qualification_client")) if ticket.get("qualification_client") in qualif_client_list else 0
+                            new_qc_in_form = st.selectbox("Qualification Client", qualif_client_list, index=cur_qc_idx2, key="qc_form_edit")
 
-                    submit_edit_content = st.form_submit_button("💾 Enregistrer les informations du ticket", type="primary", use_container_width=True)
+                        submit_edit_content = st.form_submit_button("💾 Enregistrer les informations du ticket", type="primary", use_container_width=True)
 
-                    if submit_edit_content:
-                        if not new_summary.strip() or not new_desc.strip():
-                            st.error("Le résumé et la description détaillée sont obligatoires.")
-                        else:
-                            new_cid = None
-                            if sel_c_name != "(Aucun client)":
-                                for c in all_clients:
-                                    if c["name"] == sel_c_name:
-                                        new_cid = c["id"]
+                        if submit_edit_content:
+                            if not new_summary.strip() or not new_desc.strip():
+                                st.error("Le résumé et la description détaillée sont obligatoires.")
+                            else:
+                                new_cid = ticket["client_id"]
+                                if is_staff and sel_c_name != "(Aucun client)":
+                                    for c in all_clients:
+                                        if c["name"] == sel_c_name:
+                                            new_cid = c["id"]
+                                            break
+
+                                new_pid = ticket["project_id"]
+                                for p in eligible_projects:
+                                    if p["name"] == sel_p_name:
+                                        new_pid = p["id"]
                                         break
 
-                            new_pid = ticket["project_id"]
-                            for p in all_projects:
-                                if p["name"] == sel_p_name:
-                                    new_pid = p["id"]
-                                    break
+                                chosen_prio = new_prio_in_form if not is_staff else ticket["priority"]
+                                now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                with get_db() as conn:
+                                    log_ticket_history(conn, ticket["id"], user["id"], "Titre", ticket["summary"], new_summary.strip())
+                                    log_ticket_history(conn, ticket["id"], user["id"], "Projet", ticket["project_name"], sel_p_name)
+                                    if is_staff:
+                                        log_ticket_history(conn, ticket["id"], user["id"], "Client", ticket["client_name"] or "Aucun", sel_c_name)
+                                    log_ticket_history(conn, ticket["id"], user["id"], "Catégorie", ticket["category"], new_cat_in_form)
+                                    log_ticket_history(conn, ticket["id"], user["id"], "Qualif. Client", ticket.get("qualification_client", ""), new_qc_in_form)
+                                    if not is_staff:
+                                        log_ticket_history(conn, ticket["id"], user["id"], "Priorité", ticket["priority"], chosen_prio)
 
-                            with get_db() as conn:
-                                log_ticket_history(conn, ticket["id"], user["id"], "Titre", ticket["summary"], new_summary.strip())
-                                log_ticket_history(conn, ticket["id"], user["id"], "Projet", ticket["project_name"], sel_p_name)
-                                log_ticket_history(conn, ticket["id"], user["id"], "Client", ticket["client_name"] or "Aucun", sel_c_name)
+                                    conn.execute("""
+                                        UPDATE tickets
+                                        SET summary = ?, description = ?, steps_to_reproduce = ?, additional_info = ?,
+                                            client_id = ?, project_id = ?, estimated_hours = ?,
+                                            category = ?, qualification_client = ?, priority = ?,
+                                            updated_at = ?
+                                        WHERE id = ?
+                                    """, (new_summary.strip(), new_desc.strip(), new_steps.strip(), new_add_info.strip(),
+                                          new_cid, new_pid, new_est_hours,
+                                          new_cat_in_form, new_qc_in_form, chosen_prio,
+                                          now_str, ticket["id"]))
 
-                                conn.execute("""
-                                    UPDATE tickets
-                                    SET summary = ?, description = ?, steps_to_reproduce = ?, additional_info = ?,
-                                        client_id = ?, project_id = ?, estimated_hours = ?, updated_at = ?
-                                    WHERE id = ?
-                                """, (new_summary.strip(), new_desc.strip(), new_steps.strip(), new_add_info.strip(),
-                                      new_cid, new_pid, new_est_hours, now_str, ticket["id"]))
+                                # Notification
+                                send_ticket_notification(
+                                    ticket["id"],
+                                    action_type="update",
+                                    author_name=user["full_name"],
+                                    details="Informations du ticket complétées / modifiées"
+                                )
 
-                            # Notification
-                            send_ticket_notification(
-                                ticket["id"],
-                                action_type="update",
-                                author_name=user["full_name"],
-                                details="Informations du ticket complétées / modifiées"
-                            )
-
-                            sync_all_to_sharepoint_async()
-                            st.success("Informations du ticket mises à jour avec succès !")
+                                sync_all_to_sharepoint_async()
+                                st.success("Informations du ticket mises à jour avec succès !")
+                                st.rerun()
                             st.rerun()
 
         # Pièces Jointes
@@ -438,13 +490,15 @@ def show_ticket_detail():
             st.markdown("#### ✍️ Ajouter une note")
             with st.form("add_note_form"):
                 note_text = st.text_area("Votre commentaire / analyse technique :", height=100)
-                n_c1, n_c2 = st.columns(2)
-                with n_c1:
-                    is_private_input = False
-                    if can_see_priv:
+                if can_see_priv:
+                    n_c1, n_c2 = st.columns(2)
+                    with n_c1:
                         is_private_input = st.checkbox("🔒 Note interne (invisible pour le client)", value=False)
-                with n_c2:
-                    time_spent_input = st.number_input("Temps passé (en heures) :", min_value=0.0, max_value=24.0, step=0.25, value=0.0)
+                    with n_c2:
+                        time_spent_input = st.number_input("Temps passé (en heures) :", min_value=0.0, max_value=24.0, step=0.25, value=0.0)
+                else:
+                    is_private_input = False
+                    time_spent_input = 0.0
 
                 submit_note = st.form_submit_button("Envoyer la note", use_container_width=True)
 

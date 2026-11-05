@@ -215,7 +215,7 @@ def show_tickets_list():
 
             with cols[4]:
                 st.write("")
-                if st.button("Détails & Cycle ➔", key=f"btn_open_{row['id']}", use_container_width=True):
+                if st.button("✏️ Ouvrir / Modifier ➔", key=f"btn_open_{row['id']}", use_container_width=True):
                     st.session_state["selected_ticket_id"] = row["id"]
                     st.session_state["current_page"] = "ticket_detail"
                     st.rerun()
