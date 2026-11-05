@@ -83,6 +83,24 @@ def can_see_private_notes(user) -> bool:
 def can_delete_ticket(user) -> bool:
     return user and user.get("role") == "Administrateur"
 
+def can_edit_ticket(user, ticket=None) -> bool:
+    """Détermine si l'utilisateur a le droit de modifier les informations d'un ticket."""
+    if not user:
+        return False
+    role = user.get("role")
+    if role in ["Administrateur", "Gestionnaire", "Développeur", "Rapporteur"]:
+        return True
+    if role == "Client":
+        if ticket is None:
+            return True
+        allowed_cids = user.get("allowed_client_ids", [])
+        if not allowed_cids and user.get("client_id"):
+            allowed_cids = [user.get("client_id")]
+        ticket_cid = ticket["client_id"] if isinstance(ticket, dict) else getattr(ticket, "client_id", None)
+        if not allowed_cids or ticket_cid in allowed_cids or ticket_cid is None:
+            return True
+    return False
+
 def filter_tickets_query_for_user(user, base_query: str, params: list = None) -> tuple[str, list]:
     """Adapte une requête SQL selon les restrictions de rôle et de clients associés de l'utilisateur."""
     if params is None:
