@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 from database import (
-    get_db, log_ticket_history, get_custom_list_values
+    get_db, log_ticket_history, get_custom_list_values, sync_all_to_sharepoint_async
 )
 from auth import get_current_user, can_assign_and_resolve
 from utils import generate_next_ticket_number, save_uploaded_file
@@ -173,6 +173,9 @@ def show_ticket_create():
                 author_name=user["full_name"],
                 details=f"Priorité : {selected_priority} | Catégorie : {selected_category}"
             )
+
+            # Mise à jour automatique des fichiers miroirs SharePoint (Excel + JSON)
+            sync_all_to_sharepoint_async()
 
             st.success(f"Ticket {ticket_num} créé avec succès !")
             st.session_state["selected_ticket_id"] = new_ticket_id

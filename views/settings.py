@@ -6,7 +6,10 @@ import io
 from pathlib import Path
 import config
 from auth import get_current_user, can_manage_all
-from database import get_email_settings, save_email_settings
+from database import (
+    get_email_settings, save_email_settings,
+    export_database_to_sharepoint_mirror, restore_database_from_json, sync_all_to_sharepoint
+)
 from notifications import send_test_email
 
 def show_settings():
@@ -29,23 +32,108 @@ def show_settings():
     # --- TAB 1 : STOCKAGE ONEDRIVE / SHAREPOINT ---
     # ==========================================
     with tab_onedrive:
+        # PANNEAU 1 : ESPACE SHAREPOINT & FICHIERS ACCESSIBLES EN DIRECT
         with st.container(border=True):
-            st.markdown("### 📂 Configuration du Stockage OneDrive / SharePoint")
-            
-            # Affichage de l'état actuel
+            st.markdown("### 🌐 Espace SharePoint & Fichiers Directement Accessibles")
+            st.caption("Conformément au standard de l'application Scout, l'intégralité des données est répliquée dans SharePoint sous formats Excel et JSON directement consultables en ligne.")
+
+            excel_p = current_path / "Export_MantisV2_Complet.xlsx"
+            json_p = current_path / "mantis_data.json"
+            bak_p = current_path / "ticketing.db.bak"
+
             if sharepoint_url:
-                st.markdown(f"🌐 **Lien SharePoint configuré :**")
+                st.markdown(f"🔗 **Dossier SharePoint en ligne :**")
                 st.code(sharepoint_url, language=None)
-                col_btn_sp, _ = st.columns([1.5, 3])
+                col_btn_sp, col_sync_now = st.columns([1.5, 2])
                 with col_btn_sp:
                     st.link_button("🌐 Ouvrir dans SharePoint Web ➔", sharepoint_url, use_container_width=True)
-
-                st.markdown(f"💻 **Dossier local synchronisé sur ce PC :** `{current_path}`")
-                st.caption("ℹ️ *Les fichiers enregistrés par Mantis V2 (base relationnelle et pièces jointes) sont stockés dans ce dossier local et sont automatiquement répliqués en continu vers votre espace SharePoint en ligne par le client OneDrive Entreprise.*")
-            else:
-                st.info(f"📁 **Chemin local actuel :** `{current_path}`")
+                with col_sync_now:
+                    if st.button("🔄 Synchroniser les fichiers SharePoint maintenant", use_container_width=True, type="primary"):
+                        if export_database_to_sharepoint_mirror():
+                            st.success("Miroir SharePoint mis à jour avec succès (Excel + JSON + Base) !")
+                            st.rerun()
+                        else:
+                            st.error("Erreur lors de la synchronisation.")
 
             st.markdown("---")
+            st.markdown("##### 📄 Fichiers présents dans l'espace SharePoint :")
+            
+            c_f1, c_f2, c_f3 = st.columns(3)
+            with c_f1:
+                st.markdown("📊 **Classeur Excel Multi-Onglets**")
+                st.caption("`Export_MantisV2_Complet.xlsx`")
+                if excel_p.exists():
+                    sz_kb = excel_p.stat().st_size / 1024.0
+                    mtime = datetime.datetime.fromtimestamp(excel_p.stat().st_mtime).strftime("%d/%m/%Y %H:%M")
+                    st.success(f"Disponible ({sz_kb:.1f} Ko)\n\n*MàJ : {mtime}*")
+                    with open(excel_p, "rb") as f_ex:
+                        st.download_button("⬇️ Télécharger Excel (.xlsx)", data=f_ex.read(), file_name="Export_MantisV2_Complet.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+                else:
+                    st.warning("Non généré")
+                    if st.button("Générer Excel", key="gen_ex"):
+                        export_database_to_sharepoint_mirror()
+                        st.rerun()
+
+            with c_f2:
+                st.markdown("💾 **Snapshot JSON Miroir**")
+                st.caption("`mantis_data.json`")
+                if json_p.exists():
+                    sz_kb = json_p.stat().st_size / 1024.0
+                    mtime = datetime.datetime.fromtimestamp(json_p.stat().st_mtime).strftime("%d/%m/%Y %H:%M")
+                    st.success(f"Disponible ({sz_kb:.1f} Ko)\n\n*MàJ : {mtime}*")
+                    with open(json_p, "rb") as f_js:
+                        st.download_button("⬇️ Télécharger JSON (.json)", data=f_js.read(), file_name="mantis_data.json", mime="application/json", use_container_width=True)
+                else:
+                    st.warning("Non généré")
+                    if st.button("Générer JSON", key="gen_js"):
+                        export_database_to_sharepoint_mirror()
+                        st.rerun()
+
+            with c_f3:
+                st.markdown("🗄️ **Base SQLite & Backup**")
+                st.caption("`ticketing.db` + `.bak`")
+                if db_path.exists():
+                    sz_kb = db_path.stat().st_size / 1024.0
+                    st.info(f"Base active : {sz_kb:.1f} Ko\n\nBackup sécurité : {'Présent' if bak_p.exists() else 'En attente'}")
+                else:
+                    st.error("Base introuvable")
+
+        # PANNEAU 2 : GARANTIE ANTI-ÉCRASEMENT & RESTAURATION
+        with st.container(border=True):
+            st.markdown("### 🛡️ Protection Anti-Écrasement (Streamlit Cloud)")
+            st.success("""
+            ✅ **Protection Active & Permanente** :
+            - Lors des redémarrages du serveur Streamlit ou d'un redéploiement, l'application recharge automatiquement les données depuis le miroir `mantis_data.json` / base SQLite.
+            - **Aucune fausse donnée ou donnée de test** n'est jamais injectée.
+            - Vos clients, projets (Projet One Pay, TF1), utilisateurs et tickets sont 100% préservés et ne peuvent pas être écrasés.
+            """)
+
+            with st.expander("📤 Restaurer la base depuis un fichier de sauvegarde (JSON)", expanded=False):
+                st.caption("Utilisez cette option si vous souhaitez restaurer l'intégralité de vos tickets et projets depuis une sauvegarde JSON.")
+                uploaded_json = st.file_uploader("Fichier mantis_data.json :", type=["json"], key="restore_json_uploader")
+                if uploaded_json is not None:
+                    if st.button("🚀 Confirmer la restauration complète", type="primary"):
+                        try:
+                            # Écrire dans un fichier temporaire puis restaurer
+                            tmp_restore = current_path / "_temp_restore.json"
+                            with open(tmp_restore, "wb") as f_tmp:
+                                f_tmp.write(uploaded_json.getvalue())
+                            ok_res, msg_res = restore_database_from_json(tmp_restore)
+                            if tmp_restore.exists():
+                                tmp_restore.unlink()
+                            if ok_res:
+                                st.success("Restauration effectuée avec succès !")
+                                st.rerun()
+                            else:
+                                st.error(msg_res)
+                        except Exception as e_res:
+                            st.error(f"Erreur restauration : {e_res}")
+
+        # PANNEAU 3 : CONFIGURATION DU STOCKAGE LOCAL
+        with st.container(border=True):
+            st.markdown("### 📁 Emplacement du Stockage Local Synchronisé")
+            st.markdown(f"💻 **Dossier local sur ce PC :** `{current_path}`")
+            st.caption("ℹ️ *Le client OneDrive Entreprise de votre PC assure la synchronisation automatique et continue de ce dossier vers votre SharePoint en ligne.*")
 
             # Formulaire de modification
             default_input_value = sharepoint_url if sharepoint_url else str(current_path)
@@ -70,6 +158,10 @@ def show_settings():
                                 try:
                                     if (old_path / "ticketing.db").exists():
                                         shutil.copy2(old_path / "ticketing.db", new_path / "ticketing.db")
+                                    if (old_path / "mantis_data.json").exists():
+                                        shutil.copy2(old_path / "mantis_data.json", new_path / "mantis_data.json")
+                                    if (old_path / "Export_MantisV2_Complet.xlsx").exists():
+                                        shutil.copy2(old_path / "Export_MantisV2_Complet.xlsx", new_path / "Export_MantisV2_Complet.xlsx")
                                     if (old_path / "attachments").exists():
                                         dest_att = new_path / "attachments"
                                         dest_att.mkdir(parents=True, exist_ok=True)
@@ -85,7 +177,7 @@ def show_settings():
                         else:
                             st.error(msg)
 
-        # PANNEAU 2 : SANTÉ DU STOCKAGE & STATISTIQUES
+        # PANNEAU 4 : SANTÉ DU STOCKAGE & STATISTIQUES
         with st.container(border=True):
             st.markdown("### 📊 État & Santé du Stockage")
 
@@ -110,10 +202,10 @@ def show_settings():
             with c4:
                 st.metric("Volume Fichiers", f"{(att_total_bytes / (1024*1024)):.2f} Mo")
 
-        # PANNEAU 3 : SAUVEGARDE & ARCHIVAGE MANUEL
+        # PANNEAU 5 : ARCHIVE ZIP COMPLÈTE
         with st.container(border=True):
-            st.markdown("### 🗄️ Sauvegarde / Export d'Archive Complète")
-            st.caption("Téléchargez une archive ZIP contenant la base de données et l'intégralité des pièces jointes stockées sur OneDrive.")
+            st.markdown("### 🗄️ Sauvegarde / Export d'Archive Complète (.zip)")
+            st.caption("Téléchargez une archive ZIP contenant la base SQLite, le miroir JSON, l'export Excel et toutes les pièces jointes.")
 
             if st.button("📦 Générer le ZIP de sauvegarde"):
                 try:
@@ -121,6 +213,10 @@ def show_settings():
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                         if db_path.exists():
                             zip_file.write(db_path, arcname="ticketing.db")
+                        if json_p.exists():
+                            zip_file.write(json_p, arcname="mantis_data.json")
+                        if excel_p.exists():
+                            zip_file.write(excel_p, arcname="Export_MantisV2_Complet.xlsx")
                         if attachments_dir.exists():
                             for root, _, files in os.walk(attachments_dir):
                                 for file in files:

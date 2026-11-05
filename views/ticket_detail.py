@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 import config
 from database import (
-    get_db, STATUS_LIST, log_ticket_history, get_custom_list_values
+    get_db, STATUS_LIST, log_ticket_history, get_custom_list_values, sync_all_to_sharepoint_async
 )
 from auth import (
     get_current_user, can_assign_and_resolve, can_see_private_notes, can_delete_ticket
@@ -247,6 +247,7 @@ def show_ticket_detail():
                             details=f"Statut : {new_status} | Priorité : {new_priority} | Assigné à : {new_assigned_name}"
                         )
 
+                        sync_all_to_sharepoint_async()
                         st.success("Ticket mis à jour avec succès !")
                         st.rerun()
 
@@ -275,6 +276,7 @@ def show_ticket_detail():
 
                         st.session_state["selected_ticket_id"] = None
                         st.session_state["current_page"] = "tickets_list"
+                        sync_all_to_sharepoint_async()
                         st.success(f"Ticket {ticket['ticket_number']} supprimé avec succès !")
                         st.rerun()
                     except Exception as e_delt:
@@ -369,6 +371,7 @@ def show_ticket_detail():
                                 details="Informations du ticket complétées / modifiées"
                             )
 
+                            sync_all_to_sharepoint_async()
                             st.success("Informations du ticket mises à jour avec succès !")
                             st.rerun()
 
@@ -472,6 +475,7 @@ def show_ticket_detail():
                             details=f"Nouvelle note ajoutée ({time_spent_input}h)"
                         )
 
+                        sync_all_to_sharepoint_async()
                         st.success("Note ajoutée !")
                         st.rerun()
 

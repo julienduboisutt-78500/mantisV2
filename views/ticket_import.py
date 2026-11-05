@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 from database import (
-    get_db, log_ticket_history, get_custom_list_values
+    get_db, log_ticket_history, get_custom_list_values, sync_all_to_sharepoint_async
 )
 from auth import get_current_user, can_manage_projects
 from utils import generate_next_ticket_number
@@ -284,6 +284,9 @@ def show_ticket_import():
                     author_name=user["full_name"],
                     details=f"Créé via import en masse | Priorité : {r['priority']}"
                 )
+
+        if imported_success > 0:
+            sync_all_to_sharepoint_async()
 
         st.success(f"🎉 Félicitations : {imported_success} ticket(s) ont été importés avec succès dans Mantis V2 !")
         if st.button("📋 Voir la liste des tickets ➔", type="primary"):

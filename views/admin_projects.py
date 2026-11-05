@@ -4,7 +4,7 @@ import datetime
 import shutil
 from pathlib import Path
 import config
-from database import get_db, LIST_TYPE_LABELS
+from database import get_db, LIST_TYPE_LABELS, sync_all_to_sharepoint_async
 from auth import get_current_user, can_manage_all, can_manage_projects
 
 def show_admin_projects():
@@ -66,6 +66,7 @@ def show_admin_projects():
                                         INSERT INTO clients (name, code, contact_email, contact_phone, created_at)
                                         VALUES (?, ?, ?, ?, ?)
                                     """, (c_name.strip(), c_code.strip().upper(), c_email.strip(), c_phone.strip(), now_str))
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Client '{c_name}' ajouté avec succès !")
                                 st.rerun()
                             except Exception as e:
@@ -103,6 +104,7 @@ def show_admin_projects():
                                             SET name = ?, code = ?, contact_email = ?, contact_phone = ?, is_active = ?
                                             WHERE id = ?
                                         """, (e_c_name.strip(), e_c_code.strip().upper(), e_c_email.strip(), e_c_phone.strip(), 1 if e_c_active else 0, selected_c_id))
+                                    sync_all_to_sharepoint_async()
                                     st.success(f"Client '{e_c_name}' mis à jour avec succès !")
                                     st.rerun()
                                 except Exception as e:
@@ -122,6 +124,7 @@ def show_admin_projects():
                                     conn.execute("UPDATE tickets SET client_id = NULL WHERE client_id = ?", (selected_c_id,))
                                     conn.execute("UPDATE users SET client_id = NULL WHERE client_id = ?", (selected_c_id,))
                                     conn.execute("DELETE FROM clients WHERE id = ?", (selected_c_id,))
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Client '{client_row['name']}' supprimé avec succès !")
                                 st.rerun()
                             except Exception as e_del:
@@ -191,6 +194,7 @@ def show_admin_projects():
                                         INSERT INTO projects (name, code, description, client_id, parent_project_id, status, created_at)
                                         VALUES (?, ?, ?, ?, ?, ?, ?)
                                     """, (p_name.strip(), p_code.strip().upper(), p_desc.strip(), client_id, parent_id, p_status, now_str))
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Projet '{p_name}' créé avec succès !")
                                 st.rerun()
                             except Exception as e:
@@ -263,6 +267,7 @@ def show_admin_projects():
                                             SET name = ?, code = ?, description = ?, client_id = ?, parent_project_id = ?, status = ?
                                             WHERE id = ?
                                         """, (e_p_name.strip(), e_p_code.strip().upper(), e_desc.strip(), new_client_id, new_parent_id, e_status, selected_p_id))
+                                    sync_all_to_sharepoint_async()
                                     st.success(f"Projet '{e_p_name}' mis à jour avec succès !")
                                     st.rerun()
                                 except Exception as e_up:
@@ -349,6 +354,7 @@ def show_admin_projects():
                                     # 5. Supprimer le projet lui-même
                                     conn.execute("DELETE FROM projects WHERE id = ?", (selected_p_id,))
 
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Projet '{p_row['name']}' supprimé avec succès !")
                                 st.rerun()
                             except Exception as e_del_p:
@@ -395,6 +401,7 @@ def show_admin_projects():
                             try:
                                 with get_db() as conn:
                                     conn.execute("INSERT INTO categories (name, project_id) VALUES (?, ?)", (new_cat_name.strip(), cat_proj_id))
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Catégorie '{new_cat_name}' ajoutée !")
                                 st.rerun()
                             except Exception as e_cat:
@@ -434,6 +441,7 @@ def show_admin_projects():
                                 try:
                                     with get_db() as conn:
                                         conn.execute("UPDATE categories SET name = ?, project_id = ? WHERE id = ?", (e_cat_name.strip(), new_cat_pid, selected_cat_id))
+                                    sync_all_to_sharepoint_async()
                                     st.success("Catégorie mise à jour !")
                                     st.rerun()
                                 except Exception as e_ucat:
@@ -447,6 +455,7 @@ def show_admin_projects():
                         try:
                             with get_db() as conn:
                                 conn.execute("DELETE FROM categories WHERE id = ?", (selected_cat_id,))
+                            sync_all_to_sharepoint_async()
                             st.success("Catégorie supprimée avec succès !")
                             st.rerun()
                         except Exception as e_dcat:
@@ -502,6 +511,7 @@ def show_admin_projects():
                                         INSERT INTO custom_lists (list_type, value, sort_order, is_active)
                                         VALUES (?, ?, ?, 1)
                                     """, (active_list_type, val_clean, next_order))
+                                sync_all_to_sharepoint_async()
                                 st.success(f"Option '{val_clean}' ajoutée avec succès !")
                                 st.rerun()
 
@@ -527,6 +537,7 @@ def show_admin_projects():
                             else:
                                 with get_db() as conn:
                                     conn.execute("UPDATE custom_lists SET value = ? WHERE id = ?", (e_val_text.strip(), selected_val_id))
+                                sync_all_to_sharepoint_async()
                                 st.success("Option mise à jour !")
                                 st.rerun()
 
@@ -536,5 +547,6 @@ def show_admin_projects():
                     if st.button("🗑️ Supprimer définitivement cette option", key=f"btn_del_val_{selected_val_id}", type="primary", disabled=not confirm_del_val, use_container_width=True):
                         with get_db() as conn:
                             conn.execute("DELETE FROM custom_lists WHERE id = ?", (selected_val_id,))
+                        sync_all_to_sharepoint_async()
                         st.success("Option supprimée !")
                         st.rerun()

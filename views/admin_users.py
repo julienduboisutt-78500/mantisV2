@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import datetime
-from database import get_db, ROLES_LIST, get_user_client_ids, set_user_client_ids
+from database import get_db, ROLES_LIST, get_user_client_ids, set_user_client_ids, sync_all_to_sharepoint_async
 from auth import get_current_user, can_manage_all, hash_password
 
 def show_admin_users():
@@ -82,6 +82,7 @@ def show_admin_users():
                         # Enregistrer les liaisons multi-clients
                         set_user_client_ids(new_uid, client_ids)
 
+                        sync_all_to_sharepoint_async()
                         st.success(f"Utilisateur '{new_username}' créé avec succès !")
                         st.rerun()
                     except Exception as e:
@@ -148,6 +149,7 @@ def show_admin_users():
                         # Mettre à jour liaisons multi-clients
                         set_user_client_ids(selected_uid, new_client_ids)
 
+                        sync_all_to_sharepoint_async()
                         st.success("Compte mis à jour avec succès !")
                         st.rerun()
                     except Exception as e:
@@ -186,6 +188,7 @@ def show_admin_users():
                         conn.execute("DELETE FROM user_project_access WHERE user_id = ?", (target_uid,))
                         conn.execute("DELETE FROM users WHERE id = ?", (target_uid,))
 
+                    sync_all_to_sharepoint_async()
                     st.success(f"Utilisateur '{selected_row['username']}' supprimé avec succès !")
                     st.rerun()
                 except Exception as e_delu:
